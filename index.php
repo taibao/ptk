@@ -4,4 +4,3 @@
 	define('SYS_PATH','protected/sys/');
     include_once(SYS_PATH.'ptk.php');
 	PTK::run();
-	hello();
