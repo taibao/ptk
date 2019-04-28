@@ -34,11 +34,9 @@ class DB2{
         $dbbase = array(
           'default'=>array(
             'type'=>'mysql',
-             // 'host'=>'114.116.113.43',
-             'password'=>'#Huawei#@&!1243Weiqin',
             'host'=>'127.0.0.1',
-            // 'password'=>'123123',
-            'dbname'=>'we7',
+            'password'=>'123123',
+            'dbname'=>'students',
             'username'=>'root',
             'charset'=>'utf8'
           )
