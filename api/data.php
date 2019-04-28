@@ -492,11 +492,10 @@ class data extends Controller{
 
     public function stomp_test()
     {
-        $user = "admin";
-        // $password = "oisu235uiksz";
-        $password = "admin";
+        $user = "****";
+        $password = "*****";
         $host = "localhost";
-        $port = "61613";
+        $port = "23434";
         $destination  = '/topic/event';
 
         try {
@@ -511,20 +510,7 @@ class data extends Controller{
             $frame = $stomp->readFrame();
             if($frame) {
 
-
               if( $frame->command == "MESSAGE" ) {
-                // if($frame->body == "SHUTDOWN") {
-                //   $diff = now();
-                //   $diff = $diff-$start;
-                //   // echo("Received "." in ".$diff." seconds\n"."<br/>");
-                //   break;
-                // } else {
-                //   if(  $count==0 ) {
-                //     $start = now();
-                //   }
-                //     echo "Received ".$count." messages\n"."<br/>";
-                //   $count++;
-                // }
 
                   echo $frame->body."<br/>";
 
@@ -537,17 +523,6 @@ class data extends Controller{
         } catch(StompException $e) {
           echo $e->getMessage();
         }
-    }
-
-    public function getNceTicket(){
-        $url = 'https://139.9.52.235:31943/unisso/v2/validateUser.action?service=%2Funisess%2Fv1%2Fauth%3Fservice%3D%252Fncecommonwebsite%252Fv1%252Fnewportal%252Fthemes%252Floading.html';
-        $login['username'] = "admin";
-        $login['password'] = "NceFanSaaS@CM2019%";//NceFanSaaS@CM2019%
-        $login = json_encode($login);
-        $response =  tocurl($url,array('Content-Type:application/json'),'POST',$login);
-        $response = json_decode($response,true);
-        print_r($response);exit;
-        ajaxReturn($response['redirectURL']);
     }
 
 }
