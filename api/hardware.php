@@ -7,8 +7,8 @@
 
 class hardware extends Controller{
 
-    public $api_url = '49.4.69.86';
-    public $api_port = '8765';
+    public $api_url = '127.0.0.1';
+    public $api_port = '8585';
 
     /**
      * 获取单个设备信息
@@ -171,13 +171,13 @@ public function get_doaction($data=array()){
       $content['actions']['name']   = $action['name']?$action['name']:$data['name'];
       switch($content['actions']['name']){
         case 'speedTest':
-            $values['ftpHost']="114.116.186.36";
-            $values['ftpUserName']="uftp";
-            $values['ftpPassword']="Netopen_123";
+            $values['ftpHost']="127.0.0.1";
+            $values['ftpUserName']="*********";
+            $values['ftpPassword']="*********";
             $values['ftpPort'] = 21;
             $values['ftpDownloadPath']="/public";
             $values['ftpUploadPath']="/public";
-            $values['ftpName'] = "111.log";
+            $values['ftpName'] = "*****";
             $values['fileSize'] = 5419045;
             $content['actions']['values'] = $values;
         break;

@@ -3,7 +3,7 @@ class login extends Controller{
 
     public function WeixinAuthUrl() {
         $appid = I('appid');
-        $url = 'http://ncefan.huawei.com/wef/api.php/login/WeixinGetCode?appid='.$appid;
+        $url = 'http://myblog.com/wef/api.php/login/WeixinGetCode?appid='.$appid;
         $this->rewriteAuthUrl($url,1, $appid);
         set_session('uniacid',$appid,'3600');
     }
@@ -41,7 +41,7 @@ class login extends Controller{
         if (!empty($code)) {
             $this->getWebAccessToken($code,$appid);
         } else {
-            $url = 'http://ncefan.huawei.com/wef/api.php/login/WeixinGetCode?appid='.$appid;
+            $url = 'http://myblog.com/wef/api.php/login/WeixinGetCode?appid='.$appid;
             $this->rewriteAuthUrl($url,1, $appid);
         }
     }
@@ -61,7 +61,7 @@ class login extends Controller{
         }else{
           $response =  get_session('weiqin_token_data');
         }
-        $redirectUrl = 'http://ncefan.huawei.com/web/nceApp/index.html?openId='.$response['openid'];
+        $redirectUrl = 'http://myblog.com/web/nceApp/index.html?openId='.$response['openid'];
         header('location:'.$redirectUrl);
     }
 
