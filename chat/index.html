@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>云平台数据推送</title>
+  <script type="text/javascript" src="http://ncefan.huawei.com/web/resource/js/lib/jquery-1.11.1.min.js"></script>
+  <script type="text/javascript" src="http://ncefan.huawei.com/web/chat/stomp.js"></script>
+</head>
+<body>
+<p class="change_log"></p>
+<script>
+// var url = "ws://114.116.186.36:61619/stomp"; //ws推送订阅口
+var url = "ws://49.4.69.86:61619/stomp"; //ws推送订阅口
+var login = "admin";
+var passcode = "oisu235uiksz";
+
+function gw_online(){
+  var destination = "/topic/gw/online"; //监听网关上线事件
+  client = Stomp.client(url);
+  var onconnect = function(frame) {
+  client.subscribe(destination, function(message) {
+      var send_data = eval('(' +  message.body + ')');
+      console.log(send_data);
+      if(send_data){
+        $.ajax({
+               type: "POST",
+               url: '../api.php/data/gw_online',
+               async:true,
+               data: send_data,
+               success: function(msg){
+                  console.log(msg.status_text);
+               }
+        });
+      }
+    });
+  };
+  client.connect(login, passcode, onconnect);
+}
+
+
+function gw_upstream(){
+  var destination = "/topic/gw/upsteam"; //数据透传主动上报
+  client2 = Stomp.client(url);
+  var onconnect = function(frame) {
+  client2.subscribe(destination, function(message) {
+      var send_data = eval('(' +  message.body + ')');
+      console.log(send_data);
+      if(send_data){
+        $.ajax({
+               type: "POST",
+               url: '../api.php/data/gw_upstream',
+               async:true,
+               data: send_data,
+               success: function(msg){
+                  console.log(msg.status_text);
+               }
+        });
+      }
+    });
+  };
+  client2.connect(login, passcode, onconnect);
+}
+
+function gw_alarm(){
+  var destination = "/topic/gw/alarm"; //数据透传主动上报
+  client3 = Stomp.client(url);
+  var onconnect = function(frame) {
+  client3.subscribe(destination, function(message) {
+      var send_data = eval('(' +  message.body + ')');
+      console.log(send_data);
+      if(send_data){
+        $.ajax({
+               type: "POST",
+               url: '../api.php/data/gw_alarm',
+               async:true,
+               data: send_data,
+               success: function(msg){
+                  console.log(msg.status_text);
+               }
+        });
+      }
+    });
+  };
+  client3.connect(login, passcode, onconnect);
+}
+gw_online();
+gw_upstream();
+gw_alarm();
+setInterval(function(){
+  window.location.reload();
+},300000);
+
+</script>
+
+</body>
+</html>
