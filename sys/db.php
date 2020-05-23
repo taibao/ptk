@@ -30,22 +30,15 @@ class DB2{
     /*
     连接
      */
-    public function connect(){
-        $dbbase = array(
-          'default'=>array(
-            'type'=>'mysql',
-            'host'=>'127.0.0.1',
-            'password'=>'123123',
-            'dbname'=>'students',
-            'username'=>'root',
-            'charset'=>'utf8'
-          )
-        );
-        $connect_str = $dbbase[$this->dbselect]['type'].':host='.$dbbase[$this->dbselect]['host'].';dbname='.$dbbase[$this->dbselect]['dbname'];
-        $this->link = new PDO($connect_str,$dbbase[$this->dbselect]['username'],$dbbase[$this->dbselect]['password']);//连接成功
-        $this->link->query('set names '.$dbbase[$this->dbselect]['charset']);
-        return $this;
-    }
+     public function connect(){
+         global $user_arr;
+         $dbbase = $user_arr['database'];
+         $connect_str = $dbbase[$this->dbselect]['type'].':host='.$dbbase[$this->dbselect]['host'].';port='.$dbbase[$this->dbselect]['port'].';dbname='.$dbbase[$this->dbselect]['dbname'];
+         $this->link = new PDO($connect_str,$dbbase[$this->dbselect]['username'],$dbbase[$this->dbselect]['password']);//连接成功
+         $this->link->query('set names '.$dbbase[$this->dbselect]['charset']);
+         return $this;
+     }
+
 
     public function select(){
         $this->query = $this->link->query($this->getSql());
@@ -153,7 +146,7 @@ class DB2{
      * @param $condtion 字符串可直接写where条件，数组时，字段=>值，字段=>array('连接'，'值'，'运算符')
      */
     public function where($condition=array()){
-		$i = 0;$j=0;$str='';
+		    $i = 0;$j=0;$str='';
         if(!empty($condition)){
             if(is_array($condition)){
                 if(stripos($this->condition,'where')===false){
@@ -226,9 +219,12 @@ class DB2{
 
               }else{
                 if(empty($this->condition)){
-                    $this->condition = ' where ';
+                    $this->condition = ' where '. $condition;
+                }else{
+                  if(stripos($this->condition,'where')===false){
+                    $this->condition .= ' where '.$condition;//字符串
+                  }
                 }
-                $this->condition = ' where '.$condition;//字符串
             }
         }
         return $this;
@@ -302,13 +298,37 @@ class DB2{
    public function insert($data=array()){
     $keys = array();
     $values = array();
-
     foreach($data as $key=>$value)
     {
-        $keys[] = '`'.$key.'`';
-        $values[] = '"'.$value.'"';
+        if(!is_array($value))
+        {
+          $value = str_replace('"','\"',$value);
+          $keys[] = '`'.$key.'`';
+          $values[] = '"'.$value.'"';
+          $str = '('.join(',',$values).')';
+        }else{
+          $str .= '(';
+          foreach ($value as $k => $v) {
+            $v = str_replace('"','\"',$v);
+            $str .= '"'.$v.'",';
+          }
+          $str = substr($str,0,-1);
+          $str .= '),';
+        }
     }
-    $this->sql = 'insert into '.$this->table.'('.join(',',$keys).') values('.join(',',$values).')';
+    //多维数组
+    $last = end($data);
+    if(is_array($last))
+    {
+      foreach ($last as $key => $value){
+        $keys[] = '`'.$key.'`';
+      }
+      if($str)
+      {
+        $str = substr($str,0,-1);
+      }
+    }
+    $this->sql = 'insert into '.$this->table.'('.join(',',$keys).') values '.$str;
     return $this->link->exec($this->sql);
    }
 
@@ -329,13 +349,13 @@ class DB2{
     $values = array();
     foreach($data as $key=>$value)
     {
+        $value = str_replace('"','\"',$value);
         $values[] = '`'.$key.'` = '.'"'.$value.'"';
     }
-	if(trim($this->condition)==""){
-		die("不存在更新条件");
-	}
+  	if(trim($this->condition)==""){
+  		die("不存在更新条件");
+  	}
     $this->sql = 'update '.$this->table.' set '.join(',',$values).$this->condition;
-	//echo $this->sql;exit;
     return $this->link->exec($this->sql);
    }
 
@@ -343,6 +363,15 @@ class DB2{
    public function delete(){
     $this->sql = 'delete from '.$this->table.$this->condition;
     return $this->link->exec($this->sql);
-   }
+  }
+
+   #调用存储过程
+   // public function procedure($condition,$param){
+   //   $sql = 'SELECT name, colour, calories FROM fruit WHERE calories < :calories AND colour = :colour';
+   //   $sth = $this->link->prepare($condition, array(PDO::ATTR_CURSOR => PDO::CURSOR_FWDONLY));
+   //   $sth->execute($param);
+   //   $red = $sth->fetchAll();
+   //
+   // }
 
 }

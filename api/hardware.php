@@ -6,9 +6,12 @@
 */
 
 class hardware extends Controller{
-
-    public $api_url = '127.0.0.1';
-    public $api_port = '8585';
+    public $api_url;
+    public function __construct(){
+      islogin();
+      global $user_arr;
+      $this->api_url = $user_arr['agent_auth']['url']; //测试
+    }
 
     /**
      * 获取单个设备信息
@@ -21,7 +24,7 @@ class hardware extends Controller{
       try{
         if(I('')||$mac){
           $id = I('mac')?I('mac'):$mac;
-      		$url = 'http://'.$this->api_url.':'.$this->api_port.'/object/gateway/onoffline/id/'.$id;
+      		$url = $this->api_url.'object/gateway/onoffline/id/'.$id;
       		$header[] = 'access-token:'.get_session('token');
       		$response = tocurl($url, $header);
       		$response = json_decode($response, true);
@@ -45,7 +48,7 @@ class hardware extends Controller{
       try{
         if(I('')||$data){
           $mac = I('mac')?I('mac'):$data['mac'];
-          $url = 'http://'.$this->api_url.':'.$this->api_port.'/object/gateway/'.$mac.'/setting';
+          $url = $this->api_url.'object/gateway/'.$mac.'/setting';
 
           $header[] = 'access-token:'.get_session('token');
           $header[] = 'Content-Type:application/json';
@@ -53,11 +56,10 @@ class hardware extends Controller{
           $content['mac'] = I('mac')?I('mac'):$data['mac'];
           $content['actions'] = json_decode('['.json_encode(I('action')?I('action'):$data['action']).']');
           $content = '['.json_encode($content).']';
-          $action = I('action');
+          $action = I('action')?I('action'):$data['action'];
           //修改别名
           $response = tocurl($url, $header,'POST',$content);
           $response = json_decode($response, true);
-
           if(array_key_exists("name",$action)&&$response['errorCode']=="0"){
             if($action['name']=='configOnt'&&$action['values']['gatewayName']){
               $WhiteListModel =  loadModel('TblGatewayWhiteList');
@@ -69,7 +71,6 @@ class hardware extends Controller{
               $OnofflineGatewayModel->where($map)->save($update_data);
             }
           }
-
           if($data)return $response;
         }
       }catch(Exception $e){
@@ -86,7 +87,7 @@ class hardware extends Controller{
  */
 public function getOnlineAll(){
   try{
-    $url = 'http://'.$this->api_url.':'.$this->api_port.'/object/gateway/onoffline/all';
+    $url = $this->api_url.'object/gateway/onoffline/all';
     $header[] = 'access-token:'.get_session('token');
     $response = tocurl($url, $header);
     $response = json_decode($response, true);
@@ -108,7 +109,7 @@ public function getAlarmMac($mac=''){
   try{
     if(I('')||$mac){
       $mac = I('mac')?I('mac'):$mac;
-      $url = 'http://'.$this->api_url.':'.$this->api_port.'/object/gateway/alarm/'.$mac;
+      $url = $this->api_url.'object/gateway/alarm/'.$mac;
       $header[] = 'access-token:'.get_session('token');
       $response = tocurl($url, $header);
       $response = json_decode($response, true);
@@ -128,7 +129,7 @@ public function getAlarmMac($mac=''){
  */
  public function getAlarmAll(){
    try{
-     $url = 'http://'.$this->api_url.':'.$this->api_port.'/object/gateway/alarm/all';
+     $url = $this->api_url.'object/gateway/alarm/all';
      $header[] = 'access-token:'.get_session('token');
      $response = tocurl($url, $header);
      $response = json_decode($response, true);
@@ -156,9 +157,10 @@ public function getAlarmMac($mac=''){
  */
 public function get_doaction($data=array()){
   try{
+    global $user_arr;
     if(I('')||$data){
       $mac = I('mac')?I('mac'):$data['mac'];
-      $url = 'http://'.$this->api_url.':'.$this->api_port.'/object/gateway/'.$mac.'/action/do';
+      $url = $this->api_url.'object/gateway/'.$mac.'/action/do';
 
       if(I('action')){
         $action = I('action');
@@ -168,17 +170,10 @@ public function get_doaction($data=array()){
       $header[] = 'Content-Type:application/json';
 
       $content['mac'] = I('mac')?I('mac'):$data['mac'];
-      $content['actions']['name']   = $action['name']?$action['name']:$data['name'];
+      $content['actions']['name'] = $action['name']?$action['name']:$data['name'];
       switch($content['actions']['name']){
         case 'speedTest':
-            $values['ftpHost']="127.0.0.1";
-            $values['ftpUserName']="*********";
-            $values['ftpPassword']="*********";
-            $values['ftpPort'] = 21;
-            $values['ftpDownloadPath']="/public";
-            $values['ftpUploadPath']="/public";
-            $values['ftpName'] = "*****";
-            $values['fileSize'] = 5419045;
+            $values = $user_arr['ftp_server'];
             $content['actions']['values'] = $values;
         break;
         default:
@@ -205,7 +200,7 @@ public function get_doaction($data=array()){
  */
  public function getOnlineType(){
    try{
-     $url = 'http://'.$this->api_url.':'.$this->api_port.'/object/gateway/onoffline/type/ap';
+     $url = $this->api_url.'object/gateway/onoffline/type/ap';
      $header[] = 'access-token:'.get_session('token');
      $response = tocurl($url, $header);
      $response = json_decode($response, true);
@@ -226,7 +221,7 @@ public function get_doaction($data=array()){
     try{
       if(I('')||$mac){
         $mac = I('mac')?I('mac'):$mac;
-        $url = 'http://'.$this->api_url.':'.$this->api_port.'/object/gateway/onoffline/history/children/'.$mac.'/offline';
+        $url = $this->api_url.'object/gateway/onoffline/history/children/'.$mac.'/offline';
         $header[] = 'access-token:'.get_session('token');
         $response = tocurl($url, $header);
         $response = json_decode($response, true);
@@ -247,14 +242,13 @@ public function get_doaction($data=array()){
  */
  public function getUpstreamAll(){
    try{
-     $url = 'http://'.$this->api_url.':'.$this->api_port.'/object/gateway/upstream/all';
+     $url = $this->api_url.'object/gateway/upstream/all';
      $header[] = 'access-token:'.get_session('token');
      $response = tocurl($url, $header);
      $response = json_decode($response, true);
      if($data)return $response;
    }catch(Exception $e){
        $response = getresponse('error');
-
    }
    ajaxReturn($response);
  }
@@ -269,7 +263,7 @@ public function get_doaction($data=array()){
     try{
       if(I('')||$mac){
         $mac = I('mac')?I('mac'):$mac;
-        $url = 'http://'.$this->api_url.':'.$this->api_port.'/object/gateway/upstream/'.$mac;
+        $url = $this->api_url.'object/gateway/upstream/'.$mac;
         $header[] = 'access-token:'.get_session('token');
         $response = tocurl($url, $header);
         $response = json_decode($response, true);
@@ -290,14 +284,13 @@ public function get_doaction($data=array()){
    */
    public function getTypeGetAll(){
      try{
-       $url = 'http://'.$this->api_url.':'.$this->api_port.'/object/type/all';
+       $url = $this->api_url.'object/type/all';
        $header[] = 'access-token:'.get_session('token');
        $response = tocurl($url, $header);
        $response = json_decode($response, true);
        if($data)return $response;
      }catch(Exception $e){
          $response = getresponse('error');
-
      }
      ajaxReturn($response);
    }
@@ -310,14 +303,13 @@ public function get_doaction($data=array()){
     */
     public function getDomainAll(){
       try{
-        $url = 'http://'.$this->api_url.':'.$this->api_port.'/object/domain/all';
+        $url = $this->api_url.'object/domain/all';
         $header[] = 'access-token:'.get_session('token');
         $response = tocurl($url, $header);
         $response = json_decode($response, true);
         if($data)return $response;
       }catch(Exception $e){
           $response = getresponse('error');
-
       }
       ajaxReturn($response);
     }
@@ -332,7 +324,7 @@ public function get_doaction($data=array()){
    try{
      if(I('')||$data){
        $mac = I('mac')?I('mac'):$data['mac'];
-       $url = 'http://'.$this->api_url.':'.$this->api_port.'/object/domain/add';
+       $url = $this->api_url.'object/domain/add';
 
        $header[] = 'access-token:'.get_session('token');
        $header[] = 'Content-Type:application/json';
@@ -363,7 +355,7 @@ public function get_doaction($data=array()){
    try{
      if(I('')||$mac){
        $mac = I('mac')?I('mac'):$mac;
-       $url = 'http://'.$this->api_url.':'.$this->api_port.'/object/domain/del/'.$mac;
+       $url = $this->api_url.'object/domain/del/'.$mac;
        $header[] = 'access-token:'.get_session('token');
        $header[] = 'Content-Type:application/json';
        $response = getdelurl($url, $header);
@@ -385,7 +377,7 @@ public function get_doaction($data=array()){
    try{
      if(I('')||$data){
        $mac = I('mac')?I('mac'):$data['mac'];
-       $url = 'http://'.$this->api_url.':'.$this->api_port.'/object/domain/whitelist/add';
+       $url = $this->api_url.'object/domain/whitelist/add';
 
        $header[] = 'access-token:'.get_session('token');
        $header[] = 'Content-Type:application/json';
@@ -415,17 +407,22 @@ public function get_doaction($data=array()){
   public function getwhitelistAdd($data=array()){
     try{
       if(I('')||$data){
-        $url = 'http://'.$this->api_url.':'.$this->api_port.'/object/domain/whitelist/add';
-
+        $url = $this->api_url.'object/domain/whitelist/add';
         $header[] = 'access-token:'.get_session('token');
         $header[] = 'Content-Type:application/json';
-
-        $content['mac'] = I('mac')?I('mac'):$data['mac'];
-        $content['sn']   = I('sn')?I('sn'):$data['sn'];
-        $content['type'] = I('type')?I('type'):$data['type'];
-        $content['domain'] = I('domain')?I('domain'):$data['domain'];
-        $content = '['.json_encode($content).']';
-
+        if($data)
+        {
+          $content=$data;
+        }else{
+          $content=I('');
+        }
+        if($content['level_num']=='1')
+        {
+          $content = '['.json_encode($content).']';
+        }
+        else{
+          $content = json_encode($content);
+        }
         $response = tocurl($url, $header,'POST',$content);
         $response = json_decode($response, true);
         if($data)return $response;
@@ -433,7 +430,7 @@ public function get_doaction($data=array()){
     }catch(Exception $e){
         $response = getresponse('error');
     }
-    ajaxReturn($response);
+    // ajaxReturn($response);
   }
 
   /**
@@ -446,23 +443,31 @@ public function get_doaction($data=array()){
      try{
        if(I('')||$data){
          $mac = I('mac')?I('mac'):$data['mac'];
-         $url = 'http://'.$this->api_url.':'.$this->api_port.'/object/domain/whitelist/del';
+         $url = $this->api_url.'object/domain/whitelist/del';
 
          $header[] = 'access-token:'.get_session('token');
          $header[] = 'Content-Type:application/json';
-
-         $content['mac'] = I('mac')?I('mac'):$data['mac'];
-         $content['sn']   = I('sn')?I('sn'):$data['sn'];
-         $content['type'] = I('type')?I('type'):$data['type'];
-         $content['domain'] = I('domain')?I('domain'):$data['domain'];
-
+         if($data)
+         {
+           $content=$data;
+         }else{
+           $content=I('');
+         }
+         if($content['level_num']=='1')
+         {
+           unset($content['level_num']);
+           $content = '['.json_encode($content).']';
+         }
+         else{
+           $content = json_encode($content);
+         }
          $response = getdelurl($url, $header,$content);
          if($data)return $response;
        }
      }catch(Exception $e){
          $response = getresponse('error');
      }
-     ajaxReturn($response);
+     // ajaxReturn($response);
    }
 
    /**
@@ -475,7 +480,7 @@ public function get_doaction($data=array()){
       try{
         if(I('')||$data){
           $mac = I('mac')?I('mac'):$data['mac'];
-          $url = 'http://'.$this->api_url.':'.$this->api_port.'/object/domain/whitelist/2';
+          $url = $this->api_url.'object/domain/whitelist/2';
 
           $header[] = 'access-token:'.get_session('token');
           $header[] = 'Content-Type:application/json';

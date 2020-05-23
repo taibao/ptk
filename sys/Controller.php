@@ -17,20 +17,8 @@ class Controller{
     构造函数
      */
     public function __construct(){
-        switch ($lang=Get_Lang()){
-          case 'zh_cn':
-            $this->const_arr = include_once(SYS_PATH.'lang/const_zh_cn.php');
-            break;
-          case 'zh_i':
-            $this->const_arr = include_once(SYS_PATH.'lang/const_zh_i.php');
-            break;
-          case 'English':
-            $this->const_arr = include_once(SYS_PATH.'lang/const_en.php');
-          break;
-          default:
-            $this->const_arr = include_once(SYS_PATH.'lang/const_zh_cn.php');
-          break;
-        }
+        global $user_lang;
+        $this->const_arr = $user_lang;
 		    $this->url = new url;
     }
 

@@ -1,6 +1,10 @@
 <?php
 //设备详情
 class device extends Controller{
+    public function __construct(){
+      islogin();
+      $this->set_lang('zh_cn'); //set language
+    }
     #定义接口
     public function userInfoApi()
     {

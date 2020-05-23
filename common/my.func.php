@@ -26,6 +26,19 @@ function ajaxReturn($data,$type='') {
     }
 }
 
+function msgReturn($status,$result=array(),$status_text=""){
+  $msg['status'] = $status;
+  if($result)
+  {
+    $msg['result'] = $result;
+  }
+  if($status_text)
+  {
+    $msg['status_text'] = $status_text;
+  }
+  ajaxReturn($msg);
+}
+
 function getcloumns($results,$feild){
     $arr = array();
     foreach ($results as $value) {
@@ -65,7 +78,13 @@ function I($name,$default='',$filter=null,$datas=null) {
 										}else{
 											$bodyData = @file_get_contents('php://input');
 											$bodyData = json_decode($bodyData,true);
-											$input = $bodyData[0];
+                      if(count($bodyData)==1)
+                      {
+                        $input = $bodyData[0];
+                        $input['level_num'] = '1';
+                      }else{
+                        $input = $bodyData;
+                      }
 										}
                     break;
                 case 'PUT':
@@ -128,7 +147,7 @@ function I($name,$default='',$filter=null,$datas=null) {
     }else{ // 变量默认值
         $data       =    isset($default)?$default:NULL;
     }
-    return $data;
+    return trimdata($data);
 }
 
 /**
@@ -248,9 +267,8 @@ function IntToChr($index, $start = 65) {
 }
 
 function excelout($result,$columns,$filename=""){
-		// ob_clean();
-		ob_end_clean();
 		load()->library('phpexcel/PHPExcel');//加载PHPExcel.php
+		ob_end_clean();
 		$obj_excel = new PHPExcel();
 		//写入单元格
 		$c = 0;
@@ -277,7 +295,41 @@ function excelout($result,$columns,$filename=""){
 		header('Content-Disposition: attachment;filename='.$filename);
 		header('Cache-Control: max-age=0');
 		$obj_writer->save('php://output');
+		exit;
 };
+
+function excelout2($result,$columns,$filename=""){
+		load()->library('phpexcel/PHPExcel');//加载PHPExcel.php
+		ob_end_clean();
+		$obj_excel = new PHPExcel();
+		//写入单元格
+		$c = 0;
+		foreach ($columns as $k => $v) {
+			$obj_excel->getActiveSheet()->setCellValue(IntToChr($c).'1', $v);
+			$c++;
+		}
+		$i=2;
+		foreach($result as $key=>$r){
+			$c = 0;
+			foreach ($columns as $k => $v) {
+				$obj_excel->getActiveSheet()->setCellValue(IntToChr($c).$i, $r[$k]);
+				$c++;
+			}
+			$i++;
+		}
+		$obj_excel->createSheet();//创建表（默认sheet1）
+		$obj_writer = PHPExcel_IOFactory::createWriter($obj_excel, 'Excel2007');
+		if($filename==""){
+			$filename=time().'_down.xlsx';//导出的文件名
+		}
+    $dir = '../addons/ncefan_huawei/source/excel/';
+    if (!file_exists($dir)){
+      mkdir($dir,'7777',true);
+    }
+    $obj_writer->save($dir.$filename);
+		return ;
+};
+
 
 function excel($arr,$path){
     $excel_path = $path;
@@ -299,8 +351,44 @@ function excel($arr,$path){
     return $data;
 };
 
+//自动抽取对应的字段值
+function excel2($fields,$path){
+    $excel_path = $path;
+    load()->library('phpexcel/PHPExcel');//加载PHPExcel.php
+    $obj_excel = new PHPExcel();
+    $obj_reader = PHPExcel_IOFactory::createReader('Excel2007');//选择读取的excel格式
+    $obj_phpExcel = $obj_reader->load($excel_path);//根据excel加载excel
+    $sheet = $obj_phpExcel->getSheet(0);//读入第一个表->"Sheet1"
+    $number_row = $sheet->getHighestRow();//取得最后一行的行数（总行数）
+    $highest_column = $sheet->getHighestColumn();//取得最后一列的标识
+    $number_column= PHPExcel_Cell::columnIndexFromString($highest_column); //字母列转换为数字列(总列数)
+    #列从0开始  行从1开始
+    $data  = array();
+    $arr = array();
+    $keys = array_keys($fields);
+    for($i=0;$i<$number_column;$i++){
+        $field = (string)$sheet->getCellByColumnAndRow($i,1)->getValue(); //字段
+        if($key=array_search($field,$fields))
+        {
+          array_push($arr,$key);//excel表中字段的排列
+        }else{
+          array_push($arr,0);
+        }
+    }
+    for($r = 2;$r<=$number_row;$r++){
+        foreach ($arr as $k => $v) {
+            if($v!="0")
+            {
+              $data[$r-2][$v] = (string)$sheet->getCellByColumnAndRow($k,$r)->getValue();
+            }
+        }
+    }
+    return $data;
+};
+
+
 #多维数组排序
-function f_order($arr,$field,$sort){
+function mul_order($arr,$field,$sort){
 		$order = array();
 		foreach($arr as $kay => $value){
 				$order[] = $value[$field];
@@ -315,40 +403,43 @@ function f_order($arr,$field,$sort){
 
 #显示网关状态
 function getlink_status($link_status){
+    global  $user_lang;
 	$status = '';
 	switch($link_status){
-		case '0':$status='在线';break;
-		case null:$status='离线';break;
-		case '1':$status='离线';break;
-		case '2':$status='异常';break;
+		case '0':$status=$user_lang['on_line'];break;
+		case null:$status=$user_lang['off_line'];break;
+		case '1':$status=$user_lang['off_line'];break;
+		case '2':$status=$user_lang['ABNORMAL'];break;
 	}
 	return $status;
 }
 
 #显示网络体验
 function getlink_quality($quality){
+    global  $user_lang;
 	$status = '';
 	//0,极差；1，差；2，中；3，好；4，极好
 	switch($quality){
-		case '0':$status='极差';break;
-		case '1':$status='差';break;
-		case '2':$status='中';break;
-		case '3':$status='好';break;
-		case '4':$status='很好';break;
+		case '0':$status=$user_lang['poorness'];break;
+		case '1':$status=$user_lang['poor'];break;
+		case '2':$status=$user_lang['normal'];break;
+		case '3':$status=$user_lang['good'];break;
+		case '4':$status=$user_lang['very_good'];break;
 	}
 	return $status;
 }
 
 #验证excel文件上传
 function validate_excel($file){
+    global  $user_lang;
 	if(!$file['size']){
-			message('文件上传不能为空！','','error');
+			message($user_lang['UPLOAD_FILE'].$user_lang['CANNOT_EMPTY'],'','error');
 		}
 		if( $file['name'] && $file['error'] == 0){
 		$type = @end( explode('.', $file['name']));
 		$type = strtolower($type);
 		if(!in_array($type, array('xls','xlsx','csv')) ){
-				message('文件类型错误！','','error');
+				message('error！','','error');
 		}
 		if($type=='xls'){
 			$inputFileType = 'Excel5';
@@ -358,7 +449,7 @@ function validate_excel($file){
 		return true;
 	}
 	else{
-			message('文件上传错误！','','error');
+			message('error！','','error');
 	}
 }
 
@@ -369,18 +460,19 @@ function getGatewayFileds(){
 
 #返回状态信息
 function getresponse($status,$data=array()){
+    global  $user_lang;
 	$response['type'] = 'setting';
 	switch($status){
 		case 'success':
 			$response['errorCode'] = '0000';
-			$response['errorDesc'] = '查询成功';
+			$response['errorDesc'] = $user_lang['success'];
 			if($data){
 				$response['data'] = $data;
 			}
 		break;
 		case 'error':
 			$response['errorCode'] = '0005';
-			$response['errorDesc'] = '参数传递出错';
+			$response['errorDesc'] = $user_lang['error'];
 			if($data){
 				$response['remark'] = $data;
 			}
@@ -397,7 +489,7 @@ function getresponse($status,$data=array()){
  * @param Array  $content POST的数据
  * @return String
  */
-function tocurl($url,$header=array('Content-Type:application/json'),$method='',$content=array()){
+function tocurl($url,$header=array('Content-Type:application/json'),$method='',$content=array(),$only_header=false){
 		$ch = curl_init();
 		if(substr($url,0,5)=='https'){
 				curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // 跳过证书检查
@@ -406,34 +498,77 @@ function tocurl($url,$header=array('Content-Type:application/json'),$method='',$
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT_MS,5000);
 		curl_setopt($ch, CURLOPT_URL, $url);
-    // $leng = strlen(http_build_query($content));
-    // $header[] = 'content-length:'.$leng;
 		curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
 		if($method=='POST'){
 			curl_setopt($ch, CURLOPT_POST, true);
 			curl_setopt($ch, CURLOPT_POSTFIELDS, $content);
-		}
+		}else if($method=='DELETE'){
+      curl_setopt($ch, CURLOPT_CUSTOMREQUEST,'DELETE');
+			curl_setopt($ch, CURLOPT_POSTFIELDS, $content);
+    }
 		$response = curl_exec($ch);
-		if($error=curl_error($ch)){
-				die($error);
-		}
+    if($only_header)
+    {
+      $response = curl_getinfo($ch);
+    }
 		curl_close($ch);
 		return $response;
 }
 
 function getdelurl($url,$header=array('Content-Type:application/json'),$data=array()){
-    $data  = '['.json_encode($data).']';
     $ch = curl_init();
+    if(substr($url,0,5)=='https'){
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // 跳过证书检查
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);  // 从证书中检查SSL加密算法是否存在 2：表示true
+    }
     curl_setopt ($ch,CURLOPT_URL,$url);
     curl_setopt($ch, CURLOPT_TIMEOUT_MS,2000);
     curl_setopt ($ch, CURLOPT_HTTPHEADER,$header);
     curl_setopt ($ch, CURLOPT_RETURNTRANSFER,true);
     curl_setopt ($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
     curl_setopt($ch, CURLOPT_POSTFIELDS,$data);
+
     $output = curl_exec($ch);
     curl_close($ch);
     $output = json_decode($output,true);
 		return $output;
+}
+
+function set_cache($name, $data, $expire=600){
+    $map['name'] = $name;
+    $TblSessionModel = loadModel("TblSession");
+    $session_data['name'] = $name;
+    $arr = array('data'=>$data);
+    $session_data['data'] = str_replace('"',"'",json_encode($arr));
+    $session_data['expire'] = time()+$expire;
+    if($TblSessionModel->findByMap("*",$map)){
+      $id = $TblSessionModel->where($map)->save($session_data);
+    }else{
+      $id = $TblSessionModel->insert($session_data);
+    }
+    return $id;
+}
+
+function get_cache($name){
+    $map['name'] = $name;
+    $TblSessionModel = loadModel("TblSession");
+    $data = $TblSessionModel->findByMap("*",$map);
+		if($data){
+				if($data['expire']>time()){
+            $arr = json_decode(str_replace("'",'"',$data['data']),true);
+						return $arr['data'];
+				}else{
+						clear_cache($name);
+				}
+		}
+		return false;
+}
+
+function clear_cache($name){
+  $map['name'] = $name;
+  $TblSessionModel = loadModel("TblSession");
+  $num = $TblSessionModel->where($map)->delete();
+  return $num;
 }
 
 function set_session($name, $data, $expire=600){
@@ -459,14 +594,205 @@ function clear_session($name){
 }
 
 function sendsms($data,$openId){
-	$sendapi='http://114.116.186.36:8762/captcha/phoneCaptcha';
+  global $user_arr;
+	$sendapi = $user_arr['sms']['sendapi'];
 	$response = tocurl($sendapi,array('Content-Type' => 'application/x-www-form-urlencoded'),"POST",$data);
 	$response = json_decode($response,true);
-	$_SESSION[$openId]['message_verify'] = $response['captchaData'][$data['phone']];
+  $session['message_verify'] = $response['captchaData'][$data['phone']];
+  set_session($openId,$session,300);
 	return $response;
 }
 
 function now() {
   list($usec,$sec) = explode(' ', microtime());
-  return ((float)$usec + (float)$sec);
+  return ((float)$usec+(float)$sec)*1000;
+}
+
+function logOutput($filename,$data,$end_time="0") {
+  if (is_array($data)) {
+      $data = json_encode($data);
+  }
+  if($end_time)
+  {
+      $str = "时间：".date("Y-m-d H:i:s").' 消耗时间：'.$end_time." 数据：".$data." \r\n";
+  }else{
+      $str = "时间：".date("Y-m-d H:i:s")." 数据：".$data." \r\n";
+  }
+  file_put_contents($filename, $str, FILE_APPEND|LOCK_EX);
+  chmod($filename,0777);
+  return null;
+}
+
+#获取token
+function getAuth(){
+  global $user_arr;
+  $param['username'] = $user_arr['agent_auth']['username'];
+  $param['password'] = $user_arr['agent_auth']['password'];
+  $header[] = 'Content-Type:application/json';
+  $url =  $user_arr['agent_auth']['url'].'api/jwt/auth'; //测试
+  $response = tocurl($url,$header,"POST",json_encode($param));
+  $response = json_decode($response,true);
+  set_session('token',$response['token'],$response['expiresIn']);
+}
+
+#根据openId,判断用户权限
+function islogin(){
+  $appid = get_session('uniacid');
+  $weiqin_token_data = get_session("weiqin_token_data".$appid);
+  if($weiqin_token_data){
+      if($openId=I('openId'))
+      {
+        if($openId==$weiqin_token_data['openid'])
+        {
+          return true;
+        }
+      }else{
+        if($weiqin_token_data['openid'])
+        {
+          return true;
+        }
+      }
+  }
+  $msg['status']='00005';
+  $msg['title']="权限错误";
+  $msg['err_desc']="您没有操作权限";
+  ajaxReturn($msg);
+}
+
+function special_place($search)
+{
+  $regex = "/\/|\~|\!|\@|\#|\\$|\%|\^|\&|\*|\(|\)|\_|\+|\{|\}|\:|\<|\>|\?|\[|\]|\,|\.|\/|\;|\'|\`|\-|\=|\\\|\|/";
+  $str='';
+  for($i=0;$i<strlen($search);$i++){
+      $char = substr($search,$i,1);
+      if(preg_match($regex,$char))
+      {
+         $str .= '\\'.$char;
+      }else{
+        $str .= $char;
+      }
+  }
+  return $str;
+}
+
+function addmaohao($mac)
+{
+    if($mac=="")
+    {
+      return $mac;
+    }
+    $temp='';
+    for($i=0;$i<11;$i+=2)
+    {
+        $temp .= substr($mac,$i,2).':';
+    }
+    $temp = substr($temp,0,-1);
+    return $temp;
+}
+
+function decmohao($data){
+    $data = str_replace("-","",$data);
+    $data = str_replace(":","",$data);
+    $data = str_replace(" ","",$data);
+    $data = str_replace("：","",$data);
+    return $data;
+}
+
+//从data中找出值为key的元素
+function getone($field,$key,$data)
+{
+  $temp = array();
+  if(!$data){
+    return $temp;
+  }
+  foreach ($data as $value) {
+      if($value[$field]==$key){
+        $temp = $value;
+      }
+  }
+  return $temp;
+}
+
+//遍历多维数组 array_map，将指定的函数作用到每个数组上并返回值
+function trimdata($data)
+{
+  if(!is_array($data)){
+    $data = trim($data);
+  }else{
+    $data = array_map('trimdata',$data);
+  }
+  return $data;
+}
+
+//生成uuid
+function uuid()
+{
+  $uuid = '';
+  if(function_exists('uuid_create')===true){
+    $uuid = uuid_create(1);
+  }
+  else{
+    $data = openssl_random_pseudo_bytes(16);
+    $data[6] = chr(ord($data[6])&0x0f|0x40);
+    $data[8] = chr(ord($data[8])&0x3f|0x80);
+    // $uuid = vsprintf('%s%s%s%s%s%s%s%s',str_split(bin2hex($data),4));
+    $uuid = vsprintf('%s%s-%s-%s-%s-%s%s%s',str_split(bin2hex($data),4));
+  }
+  return $uuid;
+}
+
+//判断数组是否是多维
+function is_mul_arr($data)
+{
+  if(!is_array($data))
+  {
+    return false;
+  }
+  if(count($data)==count($data,1))
+  {
+    return false;
+  }else{
+    return true;
+  }
+}
+
+//将数组元素转为一维
+function transarr($data)
+{
+  foreach ($data as $key => $value) {
+    if(is_array($value))
+    {
+      $data[$key] = join(',',$value);
+    }
+  }
+  return $data;
+}
+
+//调用hardware中的函数
+function hardware($method,$data,$error="")
+{
+  include_once($_SERVER['DOCUMENT_ROOT'].'/wef/api/hardware0.php');
+  #获取线上下挂设备详情
+  $hardware = new hardware0();
+  $result = $hardware->$method($data);
+  if($error)
+  {
+    if($result['errorCode']=='1')
+    {
+      msgReturn(false,'',$error);
+    }
+  }
+  //若没有错误处理，这说明不需中断代码，直接返回
+  return $result;
+}
+
+//将为空的数组元素转为指定的默认值
+function repArrEmptyItem($data){
+  if(!is_array($data)){
+    if(!$data)
+      $data = "--";
+  }else{
+    $data = array_map('repArrEmptyItem',$data);
+  }
+  return $data;
 }

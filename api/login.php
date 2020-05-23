@@ -2,10 +2,11 @@
 class login extends Controller{
 
     public function WeixinAuthUrl() {
+        global $user_arr;
         $appid = I('appid');
-        $url = 'http://myblog.com/wef/api.php/login/WeixinGetCode?appid='.$appid;
+        set_session('uniacid',$appid,'36000');
+        $url = $user_arr['wx_auth']['url'].'/login/WeixinGetCode?appid='.$appid;
         $this->rewriteAuthUrl($url,1, $appid);
-        set_session('uniacid',$appid,'3600');
     }
 
     public function rewriteAuthUrl($url, $type=1,$appid) {
@@ -35,62 +36,65 @@ class login extends Controller{
     }
 
     public function WeixinGetCode() {
+        global $user_arr;
         $code = I('code');
         $appid = I('appid');
-
         if (!empty($code)) {
             $this->getWebAccessToken($code,$appid);
         } else {
-            $url = 'http://myblog.com/wef/api.php/login/WeixinGetCode?appid='.$appid;
-            $this->rewriteAuthUrl($url,1, $appid);
+            $url = $user_arr['wx_auth']['url'].'/login/WeixinGetCode?appid='.$appid;
+            $this->rewriteAuthUrl($url,1,$appid);
         }
     }
 
     public function getWebAccessToken($code,$appid){
-        if(!get_session("weiqin_token_data")){
+        global $user_arr;
+        if(!get_session("weiqin_token_data".$appid)){
           $getWechats = $this->getWechatsInfo($appid);
           $url ='https://api.weixin.qq.com/sns/oauth2/access_token?appid='.$getWechats['key'].'&secret='.$getWechats['secret'].'&code='.$code.'&grant_type=authorization_code';
           $getInfo = tocurl($url);
-          $response = json_decode($getInfo['content'],true);
+          $response = json_decode($getInfo,true);
           $token_data['access_token'] = $response['access_token'];
           $token_data['expires_in'] = $response['expires_in'];
           $token_data['refresh_token'] = $response['refresh_token'];
           $token_data['openid'] = $response['openid'];
           $token_data['scope'] = $response['scope'];
-          set_session('weiqin_token_data',$token_data,$token_data['expires_in']);
+          set_session('weiqin_token_data'.$appid,$token_data,$token_data['expires_in']);
         }else{
-          $response =  get_session('weiqin_token_data');
+          $response =  get_session('weiqin_token_data'.$appid);
         }
-        $redirectUrl = 'http://myblog.com/web/nceApp/index.html?openId='.$response['openid'];
+        $redirectUrl = $user_arr['wx_auth']['base_url'].'/web/nceApp/index.html?openId='.$response['openid'];
         header('location:'.$redirectUrl);
     }
 
     #获取接口基础access-token
     public function getAccessToken($appid='',$appSecret=''){
-      if(!$token_data=get_session('base_token_data')){
-        $url = 'https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid='.$appid.'&secret='.$appSecret;
-        $getInfo = tocurl($url);
-        $response = json_decode($getInfo,true);
-        $token_data['access_token'] = $response['access_token'];
-        $token_data['expires_in'] = $response['expires_in'];
-        $token_data['appid'] = $appid;
-        $token_data['secret'] = $appSecret;
-        set_session('base_token_data',$token_data,$token_data['expires_in']);
-      }
+            $uniacid = get_session('uniacid');
+          if(!$token_data=get_session('base_token_data'.$uniacid)){
+            $url = 'https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid='.$appid.'&secret='.$appSecret;
+            $getInfo = tocurl($url);
+            $response = json_decode($getInfo,true);
+            $token_data['access_token'] = $response['access_token'];
+            $token_data['expires_in'] = $response['expires_in'];
+            $token_data['appid'] = $appid;
+            $token_data['secret'] = $appSecret;
+            set_session('base_token_data'.$uniacid,$token_data,$token_data['expires_in']);
+          }
     }
 
     //获取token
-    public function getJsapiTicket(){
-      if(!$data = get_session("base_token_data")){
+    public function getJsapiTicket($appid=''){
+      $appid = get_session('uniacid');
+      if(!$data = get_session("base_token_data".$appid)){
     		$response = getresponse('error',"用户尚未登录");
       }else{
-        if(!$ticket_data=get_session("weiqin_ticket")){
+        if(!$ticket_data=get_session("weiqin_ticket".$appid)){
           $url = 'https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token='.$data['access_token'].'&type=jsapi';
           $getInfo = tocurl($url);
           $response = json_decode($getInfo,true);
           $ticket_data['ticket'] = $response['ticket'];
           $ticket_data['expires_in'] = $response['expires_in'];
-          set_session('weiqin_ticket',$ticket_data,$ticket_data['expires_in']);
+          set_session('weiqin_ticket'.$appid,$ticket_data,$ticket_data['expires_in']);
         }
         $time = time();
         $noncestr = $this->getRandomStr();
@@ -119,20 +123,27 @@ class login extends Controller{
   //返回用户提交信息
   public function update_user_info()
   {
+    islogin();
     try{
         if(I(''))
         {
           $TblFanOmUserModel = loadmodel("TblFanOmUser");
           $TblOmUserModel = loadModel("TblOmUser");
           $TblAreasToOmUserModel = loadModel("TblAreasToOmUser");
-
           $map['open_id'] = I("openId");
           $user_map = $TblFanOmUserModel->findByMap("om_user_id",$map);
-          $user = $TblOmUserModel->findByMap("om_user_id,name,phone,country_code",$user_map);
-          $user_areas = $TblAreasToOmUserModel->info("*",$user_map);
-          $user_areas = array_column($user_areas,"areas_id");
-          $user['areas'] = $user_areas;
-          $response = getresponse('success',$user);
+          if($user_map)
+          {
+            $user = $TblOmUserModel->findByMap("om_user_id,name,phone,country_code",$user_map);
+            $user_areas = $TblAreasToOmUserModel->info("*",$user_map);
+            $user_areas = array_column($user_areas,"areas_id");
+            $user['areas'] = $user_areas;
+            $response = getresponse('success',$user);
+          }else{
+            $response['status'] = false;
+            $response['errorCode'] = "00005";
+            $response['errDesc']  = "该用户不存在";
+          }
         }
     }
     catch(Exception $e)
@@ -145,6 +156,7 @@ class login extends Controller{
   //用于修改用户信息
   public function submit_user_change()
   {
+    islogin();
     try{
         if(I(''))
         {
@@ -198,6 +210,7 @@ class login extends Controller{
   //创建用户
   public function AccountCreation()
   {
+    islogin();
     $response['type'] = 'setting';
     if( $_POST['openId'] && $_POST['omUserName'] && $_POST['phone'] && $_POST['areasidList']) {
     try{
@@ -220,7 +233,7 @@ class login extends Controller{
 
           if(!$FanOmUser)
           {
-              if (array_key_exists($_POST['openId'],$_SESSION)&&$_SESSION[$_POST['openId']]['message_verify'] == $_POST['verify'])
+              if (array_key_exists($_POST['openId'],$_SESSION)&&$_SESSION[$_POST['openId']]['data']['message_verify'] == $_POST['verify'])
               {
                   #添加
                   $om_user_data['name'] = $_POST['omUserName'];
@@ -255,24 +268,24 @@ class login extends Controller{
                   }else{
                     $model->rollBack();
                     $response['errorCode'] = '0001';
-                    $response['errorCode'] = '创建失败';
+                    $response['errorDesc'] = '创建失败';
                   }
               } else {
                   $response['errorCode'] = '0001';
-                  $response['errorCode'] = '验证码错误';
+                  $response['errorDesc'] = '验证码错误';
               }
             }
             else
             {
                 $response['errorCode'] = '0002';
-                $response['errorCode'] = '用户已经注册';
+                $response['errorDesc'] = '用户已经注册';
             }
         }
     }
     catch(Exception $e)
     {
       $response['errorCode'] = '0001';
-      $response['errorCode'] = '创建失败';
+      $response['errorDesc'] = '创建失败';
     }
 
   } else {
@@ -290,17 +303,16 @@ class login extends Controller{
       if (!$_POST['areasidList']) {
           $msg .= '区域地址未选';
       }
-      $response['errorCode'] = '创建失败，'.$msg;
+      $response['errorDesc'] = '创建失败，'.$msg;
   }
 
   ajaxReturn($response);
 }
 
-public $araes=null;
-
 //用于修改用户信息
 public function AreasInfo()
 {
+  islogin();
   try{
       if(I(''))
       {
@@ -315,7 +327,6 @@ public function AreasInfo()
         $areas_id = $TblWxappAreasModel->info("areas_id",$wxapp_map);
         $areas_id = getcloumns($areas_id,"areas_id");
         $areas_id = join(",",$areas_id);
-
         $areas = array();
         if($areas_id!="")
         {
@@ -393,4 +404,141 @@ public function getinfo($feild,$id){
     return $arr;
 }
 
+public function setlang(){
+  $msg['status']='false';
+  global $user_arr;
+  $arr = array_keys($user_arr['lang_arr']);
+  if(in_array(I('lang'),$arr))
+  {
+    set_session("user_lang",I("lang"),360000);
+    $msg['status']='true';
+    $msg['lang']=I('lang');
+  }
+  ajaxReturn($msg);
+}
+
+public function send_weixin_message()
+{
+    global $user_arr;
+    $mac = I('mac');
+    $type=I('type');//0/1
+    $TblOmUserCareToGatewayModel = loadModel("TblOmUserCareToGateway");
+    $TblFanOmUserModel = loadModel("TblFanOmUser");
+    $TblGatewayWhiteListModel = loadModel('TblGatewayWhiteList');
+    $map['mac']  = $mac;
+    $gateway = $TblGatewayWhiteListModel->findByMap("install_address,areas_id,uniacid",$map);
+    $appid = $gateway['uniacid'];
+    #查找区域
+    $TblAreasModel = loadModel("TblAreas");
+    $areas_map['areas_id'] = $gateway['areas_id'];
+    $areas = $TblAreasModel->findByMap("*",$areas_map);
+    unset($pre_result);
+    $pre_result = $TblAreasModel->getchildnum($areas['parent_id'],array(),$level=0);
+    foreach ($pre_result as $k => $v) {
+        $areas['name'] = $v['name'].'--'.$areas['name'];
+    }
+    if($type=="0")
+    {
+        $templateid=$user_arr['template_id']['online'];//上线
+        $message['message']='您负责的网关'.$mac.'已上线，区域：'.$areas['name'].'，安装地址：'.$gateway['install_address'];
+    }else{
+        $templateid=$user_arr['template_id']['offline'];//下线
+        $message['message']='您负责的网关'.$mac.'已下线，区域：'.$areas['name'].'，安装地址：'.$gateway['install_address'].'，请及时前往处理。';
+    }
+
+    $getWechats =  $this->getWechatsInfo($gateway['uniacid']);
+    if(empty($_SESSION['base_token_data'.$appid]))
+    {
+        $this->getAccessToken($getWechats['key'],$getWechats['secret']);
+    }
+    #插入消息到消息中心
+    $TblMessageModel = loadModel('TblMessage');
+    $TblUserToMessageModel = loadModel('TblUserToMessage');
+    #发送微信消息
+    unset($map);
+    $map['uniacid'] = $gateway['uniacid'];
+    $om_user_cares = $TblFanOmUserModel->info("om_user_id,open_id",$map);
+    $om_users = array_column($om_user_cares,"om_user_id");
+    foreach($om_users as $v)
+    {
+        #消息中心
+        $message['type'] = '3';
+        $message['create_time'] = date("Y-m-d H:i:s");
+        $message_id = $TblMessageModel->insert($message);
+        $user_to_message['message_id'] = $message_id;
+        $user_to_message['om_user_id'] = $v;
+        $TblUserToMessageModel->insert($user_to_message);
+    }
+    $openids =array_column($om_user_cares,"open_id");
+    if(!$openids)
+    {
+        $msg['status']='00005';
+        $msg['err_desc']="没有装维人员关注该网关";
+        ajaxReturn($msg);
+    }
+    $data = get_session("base_token_data".$appid);
+    $url = 'https://api.weixin.qq.com/cgi-bin/message/template/send';
+    $header[] = 'Content-Type:application/json';
+    $url .="?access_token=".$data['access_token'];
+
+    foreach ($openids as $v)
+    {
+        #微信消息
+        $address = $gateway['install_address'];
+        $openid = $v;
+        $content ='{
+           "touser":"'.$openid.'",
+           "template_id":"'.$templateid.'",
+           "url":"'.$user_arr['wx_auth']['base_url'].'/web/nceApp/html/message_center.html?openId='.$openid.'",
+           "data":{
+                    "mac": {
+            "value":"'.$mac.'",
+                       "color":"#01AAED"
+                   },
+                   "address":{
+            "value":"'.$address.'",
+                		"color":"#01AAED"
+                   },
+                   "area":{
+            "value":"'.$areas['name'].'",
+                		"color":"#01AAED"
+                   }
+           }
+       }';
+        $getInfo = tocurl($url, $header,'POST',$content);
+        $response = json_decode($getInfo,true);
+    }
+    ajaxReturn($response);
+}
+
+    #返回进度
+    public function rebackjindu()
+    {
+//        if(I('progress'))
+//        {
+//            $msg['status']='true';
+//            $redis = new redisDb();
+//            $progress = I('progress');
+        $redis = new redisDb();
+        $data = $redis->getStr("admin.rdprogress");
+        $msg['jindu'] = $data;
+        $msg['status']=false;
+
+
+//            if(isset($data))
+//            {
+//                $msg['jindu'] = $data;
+//                if($data=='100')
+//                {
+//                    $redis->delStr($progress);
+//                }
+//            }else{
+//                $msg['jindu'] = '0';
+//            }
+//        }else{
+//            $msg['status']=false;
+//            $msg['jindu'] = '用户未登录！';
+//        }
+        ajaxReturn($msg);
+    }
 }

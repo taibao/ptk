@@ -1,5 +1,5 @@
 <?php
-	//ptk初始化文件
+	//wef初始化文件
 	class app{
 		public static $config;
 		public static $_instance = null;//入口属性
@@ -16,12 +16,12 @@
 			include_once(SYS_PATH.'url.php');
 			include_once(SYS_PATH.'config.php');
 			self::$config = $config;
-
 			define("APP_PATH",self::$config['url']['base_url'].self::$config['url']['app'].'/');//定义app路径
 			define("ROOT_PATH",self::$config['url']['base_url']);//定义ROOT路径
 			if(!array_key_exists('PATH_INFO',$_SERVER)){
 				die('路径错误！');
 			}
+
 			$parm_arr = explode('/',substr($_SERVER['PATH_INFO'],1));
 			$segment = 0;//参数开始的段数，在action的位置之后
 			$get = array();//参数数组

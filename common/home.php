@@ -1,20 +1,37 @@
 <?php
-    define('SYS_PATH','sys/');
-    define('MODLE_PATH','mymodel/');
+    header('Access-Control-Allow-Origin:*');
+    header('X-Frame-Options:Deny');
+    define('SYS_PATH',$_SERVER['DOCUMENT_ROOT'].'/wef/sys/');
+    define('MODLE_PATH',$_SERVER['DOCUMENT_ROOT'].'/wef/mymodel/');
+    define('COMMON_PATH',$_SERVER['DOCUMENT_ROOT'].'/wef/common/');
+    // #定义常量
+    define('CONTROLLER_PATH',$_SERVER['DOCUMENT_ROOT'].'/wef/api/');
+    // error_reporting(0);
+    global $user_arr;
+    if(empty($user_arr)){
+      $user_arr = include_once(COMMON_PATH.'conf.php');
+    }
     //加载公用文件
+    include_once(COMMON_PATH."my.func.php");
     include_once(SYS_PATH.'Controller.php');
     include_once(SYS_PATH.'Model.php');
     include_once(SYS_PATH.'db.php');
+    include_once(COMMON_PATH."session0.php"); //保存session到数据库中
+    session_start();
+    ob_clean();
     include_once(SYS_PATH.'function.php');
+    global $user_lang;
+
+    if(empty($user_lang))
+    {
+      $user_lang = user_lang();
+    }
+
     include_once(SYS_PATH.'url.php');
     include_once(SYS_PATH.'redis.php');
-    session_start();
     date_default_timezone_set("PRC");
-    error_reporting(0);
-    /*
-    *加载model文件
-    *@paramn $modelname 数据表名字（model）
-     */
+    header("Content-Type: text/html;charset=utf-8");
+    ini_set("memory_limit","2048M");
     function loadModel($modelname){
         static $_model  =   array();
         $modelname = ucfirst($modelname);//首字母大写

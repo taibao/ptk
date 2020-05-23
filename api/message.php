@@ -1,5 +1,9 @@
 <?php
 class message extends Controller{
+  public function __construct(){
+    islogin();
+    $this->set_lang('zh_cn'); //set language
+  }
     /**
      * 用户消息接口
      */

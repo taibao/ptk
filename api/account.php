@@ -7,6 +7,7 @@
 
 class account extends Controller{
     public function __construct(){
+      islogin();
       $this->set_lang('zh_cn'); //set language
     }
 

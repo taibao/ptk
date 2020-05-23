@@ -167,6 +167,10 @@ class Model{
       return $this->db->getLastId();//返回影响行数
     }
 
+    public function mul_insert($data){
+      return  $this->db->insert($data);
+    }
+
     #添加函数
     public function filter($data){
       //得到数据标的字段信息
@@ -176,9 +180,20 @@ class Model{
         $col_arr[] = $value->Field;
       }
       $filter_arr = array(); //过滤数组
-      foreach($data as $k=>$d){
-        if(in_array($k,$col_arr)){
-          $filter_arr[$k] = $d;
+      if(is_mul_arr($data))
+      {
+        foreach ($data as $key => $value) {
+          foreach ($value as $k => $d) {
+            if(in_array($k,$col_arr)){
+              $filter_arr[$key][$k] = $d;
+            }
+          }
+        }
+      }else{
+        foreach($data as $k=>$d){
+          if(in_array($k,$col_arr)){
+            $filter_arr[$k] = $d;
+          }
         }
       }
       return $filter_arr;
@@ -240,7 +255,8 @@ class Model{
 
     #返回行
    public function getCount(){
-      return count($this->getList());
+      $data = $this->field(" count(*) as nums ")->find();
+      return $data['nums'];
    }
 
    public function delete(){
@@ -263,8 +279,27 @@ class Model{
    public function Count($map)
    {
        $data = $this->where($map)->getCount();
-       return $count;
+       return $data;
    }
 
+   //查找插入数据是否已经存在
+   //在修改中，新值与旧值不相等，且新值在数据库中已存在，则报数据已存在
+   public function isexist($field,$new,$status_text,$old='',$filter='uniacid')
+   {
+     global $_W;
+     $map[$field] = $new;
+     if($filter)
+     {
+       $map[$filter] = $_W['uniacid'];
+     }
+     if($this->where($map)->getCount()>0)
+     {
+       //要判断修改的数据是不是本身
+       if($new!=$old) //避免造成重复
+       {
+         msgReturn(false,'',$status_text);
+       }
+     }
+   }
 
 }

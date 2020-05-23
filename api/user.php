@@ -3,6 +3,10 @@
 * 用户事件接口
 */
 class user extends Controller{
+  public function __construct(){
+    islogin();
+    $this->set_lang('zh_cn'); //set language
+  }
   /**
   *功能:用户创建
   *param: openId (String)

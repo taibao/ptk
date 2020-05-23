@@ -32,7 +32,7 @@
     function Get_Lang(){
         if(!empty($_SERVER['HTTP_ACCEPT_LANGUAGE'])){
             $lang = $_SERVER['HTTP_ACCEPT_LANGUAGE'];
-                $lang = substr($lang,0,5);
+            $lang = substr($lang,0,8);
             if(preg_match("/zh-cn/i",$lang)){
                  $lang = "zh_cn";
             }
@@ -131,4 +131,30 @@
          {
              return false;
          }
+    }
+
+    function user_lang(){
+      $user_lang = array();
+      $lang=Get_Lang();
+      if(!empty(get_session('user_lang')))
+      {
+        $lang=get_session('user_lang');
+      }else{
+        set_session("user_lang",$lang);
+      }
+      switch ($lang){
+        case 'zh_cn':
+          $user_lang = include_once($_SERVER['DOCUMENT_ROOT'].'/wef/sys/lang/const_zh_cn.php');
+          break;
+        case 'zh_i':
+          $user_lang = include_once($_SERVER['DOCUMENT_ROOT'].'/wef/sys/lang/const_zh_cn.php');
+          break;
+        case 'English':
+          $user_lang = include_once($_SERVER['DOCUMENT_ROOT'].'/wef/sys/lang/const_en.php');
+        break;
+        default:
+          $user_lang = include_once($_SERVER['DOCUMENT_ROOT'].'/wef/sys/lang/const_zh_cn.php');
+        break;
+      }
+      return $user_lang;
     }

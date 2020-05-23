@@ -6,17 +6,20 @@
     public $offset = '';
     public $total = '';
 
-    public function __construct($total,$num='10') {
+    public function __construct($total,$num='10',$jqName='sub_num') {
         $this->total = $total;
         if($_POST['num']){
-          $_SESSION['sub_num'] = $_POST['num'];
+          $_SESSION[$jqName] = $_POST['num'];
         }
-        $this->num = $_SESSION['sub_num']?$_SESSION['sub_num']:$num;
+        foreach ($_SESSION as $key => $value) {
+          if(stripos($key,'_num')&&$key!=$jqName)
+          {
+            $_SESSION[$key] = '10';
+          }
+        }
+        $this->num = $_SESSION[$jqName]?$_SESSION[$jqName]:$num;
         $this->cur_page = !empty($_POST['p'])?(int)$_POST['p']:1;
-        $this->offset   = $this->num * ($this->cur_page - 1);
-    }
 
-    public function getPage($url='',$page_num='5'){
         $this->total_page = ceil($this->total/$this->num); //获取总页数
         //确定当前页
         if($this->cur_page<1){
@@ -25,6 +28,10 @@
         if($this->cur_page>$this->total_page){
             $this->cur_page = $this->total_page;
         }
+        $this->offset   = $this->num * ($this->cur_page - 1);
+    }
+
+    public function getPage($url='',$page_num='5'){
 
         $float_page = floor($page_num/2);
 
@@ -83,23 +90,26 @@
                 $page .= '<li class="class_page_num" url="'.$url.''.$i.'">'.$i.'</li>';
             }
         }
+        if($this->cur_page<$this->total_page && $this->cur_page != $this->total_page && $this->total_page > 5)
+        {
+          if ($this->cur_page+5 <= $this->total_page) {
+            $next5_page = $this->cur_page+5;
+          } else {
+            $next5_page = $this->total_page;
+          }
+            $page .= '<li class="class_page_num more_page" url="'.$url.''.$next5_page.'">...</li>';
+            $page .= '<li class="class_page_num" url="'.$url.''.$this->total_page.'">'.$this->total_page.'</li>';
+        }
         if($this->cur_page+1<=$this->total_page)
         {
             $next_page = $this->cur_page + 1;
             $page .= '<li id="next_page" class="class_page_num" url="'.$url.''.$next_page.'"></li>';
         }
-        if($this->cur_page+5<=$this->total_page)
-        {
-            $next5_page = $this->cur_page+5;
-            $page .= '<li class="class_page_num more_page" url="'.$url.''.$next5_page.'">...</li>';
-        }
-        // $page .= '<li class="class_page_num" url="'.$url.''.$this->total_page.'">尾页</li>';
 
-    // $page .= '<li>共'.$this->total.'条数据</li>';
-		$page .= '<li class="totalPage"><form  id="page_nation" url="'.$url.'" >';
-		$page .= '<input type="text" id="sub_page_input" name="p" value="'.$this->cur_page.'" > 页 ';
+		$page .= '<li class="totalPage"><span  id="page_nation" url="'.$url.'" >';
+		$page .= '<input type="tel" id="sub_page_input" autocomplete="off" name="p" value="'.$this->cur_page.'" > 页 ';
 		$page .= '<input type="button" class="class_page_num" id="page_submit" style="line-height:18px;border:none;" value="GO">';
-		$page .= '</form></li>';
+		$page .= '</span></li>';
 
 		$page .= '</ul></div>';
         return $page;

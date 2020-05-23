@@ -6,6 +6,10 @@
 */
 
 class index extends Controller{
+  public function __construct(){
+    islogin();
+    $this->set_lang('zh_cn'); //set language
+  }
     /**
     *功能:获取关注网关列表
     *param: openId (String)
@@ -176,6 +180,7 @@ class index extends Controller{
     try{
       if(I('')){
         $search_map['open_id'] = I('openId');
+        $AreasModel =  loadModel('TblAreas');
         $TblFanOmUserModel = loadModel('TblFanOmUser');
         $TblDeviceInfoModel = loadModel('TblDeviceInfo');
         $TblOnofflineGatewayModel = loadModel('TblOnofflineGateway');
@@ -195,9 +200,15 @@ class index extends Controller{
         if($gateway_info){
           $gateway_info['link_device_num'] = $gateway_info['dev_onlinenum'];
           $gateway_info['link_device_total_num'] = $gateway_info['dev_allnum'];
-          $gateway_info['last_op_time'] = date("Y-m-d h:i:s",$gateway_info['last_op_time']);//离线时间
-          $gateway_info['last_login_time'] = date("Y-m-d h:i:s",$gateway_info['last_login_time']);//上线时间
+          $gateway_info['last_off_time'] = date("Y-m-d H:i:s",$gateway_info['last_off_time']);//离线时间
+          $gateway_info['last_login_time'] = date("Y-m-d H:i:s",$gateway_info['last_login_time']);//上线时间
         }
+        $area_id = $AreasModel->findByMap("*",array('areas_id'=>$gateway_info['areas_id']));
+        $pre_result = $AreasModel->getchildnum($area_id['parent_id'],array(),$level=0);
+        foreach ($pre_result as $k => $v) {
+            $area_id['name'] = $v['name'].'--'.$area_id['name'];
+        }
+        $gateway_info['area'] = $area_id['name'];
         #取设备信息
         // $device_map['parent_mac'] = I('mac');
         // $total_num = $TblDeviceInfoModel->where($device_map)->getCount();
@@ -278,9 +289,9 @@ class index extends Controller{
             $TblOnofflineGatewayModel = loadModel('TblOnofflineGateway');
             $gateway = $TblOnofflineGatewayModel->findByMap("install_address,alias",$gateway_map);
             $data['link_gateway'] = $gateway;
-            $data['last_online_time'] = date("Y-m-d h:i:s",$data['last_online_time']);
-            $data['last_outline_time'] = date("Y-m-d h:i:s",$data['last_outline_time']);
-            $data['bind_time'] = date("Y-m-d h:i:s",$data['bind_time']);
+            $data['last_online_time'] = date("Y-m-d H:i:s",$data['last_online_time']);
+            $data['last_outline_time'] = date("Y-m-d H:i:s",$data['last_outline_time']);
+            $data['bind_time'] = date("Y-m-d H:i:s",$data['bind_time']);
         }
 
         $response['info'] = $data;
@@ -296,23 +307,26 @@ class index extends Controller{
   public function search_device(){
     try{
       if(I('search')){
+        $search_map['openid'] = $_POST['openId'];
+        $McMappingFansModel = loadModel("McMappingFans");
+        $TblAreasToOmUserModel = loadModel("TblAreasToOmUser");
+        $TblFanOmUserModel = loadmodel("TblFanOmUser");
+
+        $om_user = $TblFanOmUserModel->findByMap("om_user_id",array('open_id'=>$_POST['openId']));
+        $om_areas_id = $TblAreasToOmUserModel->info("*",$om_user);
+        $om_areas_id = getcloumns($om_areas_id,"areas_id");
+        if(!$om_areas_id)
+        {
+          $om_areas_id=array('-1');
+        }
+        $getUnicaidInfo = $McMappingFansModel->findByMap("uniacid",$search_map);
+        $uniacid = $getUnicaidInfo['uniacid'];
+
         $search = I('search');
         $TblOnofflineGatewayModel = loadModel('TblOnofflineGateway');
         $TblAreasModel = loadModel('TblAreas');
-        $user_care_gateway_lists = $TblOnofflineGatewayModel->join('left join ims_tbl_areas on ims_tbl_areas.areas_id = ims_tbl_onoffline_gateway.areas_id where (sn like "%'.$search.'%" '.'or mac like "%'.$search.'%" '.'or alias like "%'.$search.'%" or ims_tbl_areas.name like "%'.$search.'%" ) and mac <> "" ')->limit(0,10)->info("alias,mac,up_velocity,down_velocity,install_address,link_status");
-        // foreach ($user_care_gateway_lists as $key => $value) {
-        //   $map['areas_id'] = $value['areas_id'];
-        //   $areas_id = $this->getchildnum($value['areas_id']);
-        //   $areas_id = array_reverse(getcloumns($areas_id,"areas_id"));
-        //   $install_address = '';
-        //   foreach ($areas_id as $k => $v) {
-        //     $area_map['areas_id'] = str_replace('"','',$v);
-        //     $area = $TblAreasModel->findByMap("name",$area_map);
-        //     $install_address .= $area['name'].' ';
-        //   }
-        //   $user_care_gateway_lists[$key]['install_address'] = $install_address;
-        // }
-
+        $user_care_gateway_lists = $TblOnofflineGatewayModel->join('left join ims_tbl_areas on ims_tbl_areas.areas_id = ims_tbl_onoffline_gateway.areas_id where uniacid = '.$uniacid.' and (sn like "%'.$search.'%" '.'or mac like "%'.$search.'%" '.'or alias like "%'.$search.'%" or ims_tbl_areas.name like "%'.$search.'%" ) and mac <> "" and ims_tbl_areas.areas_id in ('.join(',',$om_areas_id).')  ')->limit(0,10)->info("alias,ims_tbl_areas.areas_id,mac,up_velocity,down_velocity,install_address,link_status");
+        // echo $TblOnofflineGatewayModel->getSql();exit;
         $response = getresponse('success',$user_care_gateway_lists);
       }
     }catch(Exception $e){
@@ -488,7 +502,11 @@ class index extends Controller{
           $event['add_time'] = time();
           $TblEventModel->insert($event);
         }
-
+        $TblOnofflineGatewayModel = loadModel('TblOnofflineGateway');
+        $map['mac'] = I('mac');
+        $gateway['mac'] = I('mac');
+        $gateway['maintenance_time'] = time();
+        $gateway = $TblOnofflineGatewayModel->where($map)->save($gateway);
       }
     }catch(Exception $e){
         $response = getresponse('error');
@@ -506,7 +524,6 @@ class index extends Controller{
         $content['action']['name'] = "configOnt"; //getOntInfo
         $values = I("values");
         $content['action']['values'] = $values;
-
         $response = $hardware->gwSetting($content);
         if($response['errorDesc']=="Successed"){
           #写入事件记录
@@ -524,7 +541,8 @@ class index extends Controller{
           $TblOnofflineGatewayModel = loadModel('TblOnofflineGateway');
           $map['mac'] = I('mac');
           $gateway['mac'] = I('mac');
-          $gateway['led'] = $values['led']=="false"?'0':'1';
+          $gateway['maintenance_time'] = time();
+          $gateway['led'] = !$values['led']?'0':'1';
           $gateway = $TblOnofflineGatewayModel->where($map)->save($gateway);
         }
 

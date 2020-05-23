@@ -1,19 +1,13 @@
 <?php
+	$origin = isset($_SERVER['HTTP_ORIGIN'])? $_SERVER['HTTP_ORIGIN'] : '';
+	header('Access-Control-Allow-Origin:*');
+	header('Content-Type: text/html;charset=utf-8');
+    header('Access-Control-Allow-Methods:POST,GET,OPTIONS,DELETE'); // 允许请求的类型
+    header('Access-Control-Allow-Credentials: true'); // 设置是否允许发送 cookies
+    header('Access-Control-Allow-Headers: Content-Type,Content-Length,Accept-Encoding,X-Requested-with, Origin, X-Requested-With, Accept, Authorization, x-cookie, Cookie');
 	include_once('common/home.php');
-	include_once("common/my.func.php");
-	// #定义常量
-	define('CONTROLLER_PATH','./api/');
 	#执行初始化方法
 	include_once(SYS_PATH.'app.php');
-	if(!get_session("token")) getAuth();
+	if(!get_session("token"))
+		getAuth();
 	APP::run();
-
-	#获取token
-	function getAuth(){
-		$param['username'] = 'admin';
-		$param['password'] = 'admin';
-		$url = "http://114.116.186.36:8765/api/jwt/auth";
-		$response = tocurl($url,array(),"POST",$param);
-		$response = json_decode($response,true);
-		set_session('token',$response['token'],$response['expiresIn']);
-	}
